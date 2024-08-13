@@ -3,6 +3,7 @@ import paramiko
 import logging
 from threading import Thread
 from watcher import Watcher
+from tkinter import messagebox
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -11,11 +12,11 @@ class UploadLogic:
         self.ssh_credentials = ssh_credentials
 
     def start_watcher(self, directory):
-        # Run the watcher in a separate thread to avoid blocking the GUI
         self.watcher = Watcher(directory, self.upload_file)
         self.watcher_thread = Thread(target=self.watcher.run)
         self.watcher_thread.daemon = True  # This will allow the thread to exit when the main program exits
         self.watcher_thread.start()
+
 
     def upload_file(self, filepath):
         if filepath.lower().endswith('.pdf'):
@@ -34,7 +35,11 @@ class UploadLogic:
             transport.connect(username=self.ssh_credentials["username"], password=self.ssh_credentials["password"])
 
             sftp = paramiko.SFTPClient.from_transport(transport)
-            remote_path = os.path.join(r"/home/imo/upload", os.path.basename(filepath))  # Adjust the remote path as needed
+
+            # Ensure the remote path uses forward slashes (Unix style)
+            remote_directory = self.ssh_credentials["folderdestination"]
+            remote_path = os.path.join(remote_directory, os.path.basename(filepath)).replace('\\', '/')
+            
             sftp.put(filepath, remote_path)
             sftp.close()
             transport.close()
@@ -42,3 +47,4 @@ class UploadLogic:
         except Exception as e:
             logging.error(f"Error during SSH upload: {e}")
             raise
+
